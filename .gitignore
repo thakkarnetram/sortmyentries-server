@@ -1,0 +1,18 @@
+*.env
+/.env.dev
+/.env.prod
+.env.test
+config/secret.json
+# dependencies
+node_modules
+
+# testing
+coverage
+
+# production
+build
+
+# misc
+.DS_Store
+.env.prod.prod
+npm-debug.log
