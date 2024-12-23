@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const util = require("util");
 const { sign } = require("jsonwebtoken");
 
-exports.signJwtToken = (email) => {
+const signJwtToken = (email) => {
   return jwt.sign(
     {
       email,
@@ -26,8 +26,15 @@ exports.loginUsingOtp = async (req, res) => {
     if (otpData.isUsed) {
       return res.status(403).json({ message: "Otp already used" });
     }
+    otpData.isUsed = true;
+    await otpData.save();
+    const token = signJwtToken(otpData.email);
+    return res.status(200).json({
+      message: "Otp verified successfully",
+      token,
+    });
   } catch (error) {
-    return res.status(501).json({ message: error });
+    return res.status(500).json({ message: error });
   }
 };
 
@@ -35,20 +42,16 @@ exports.protectRouter = async (req, res, next) => {
   try {
     const token = req.headers.authorization;
     let jwtToken;
-    // If no token is provided
     if (!token) {
       return res.status(401).json({ message: "No Token Found" });
     }
     if (token && token.startsWith("Bearer ")) {
       jwtToken = token.split(" ")[1];
     }
-    // Validate and decode the token
     const decodedToken = await util.promisify(jwt.verify)(
       jwtToken,
       process.env.SECRET_KEY
     );
-
-    // Check if user exists
     const user = await User.findOne({ email: decodedToken.email });
 
     if (!user) {
@@ -56,8 +59,6 @@ exports.protectRouter = async (req, res, next) => {
         .status(404)
         .json({ message: "The user with the given token does not exist" });
     }
-
-    // Attach the user information to the request object for later use
     req.user = user;
     next();
   } catch (error) {

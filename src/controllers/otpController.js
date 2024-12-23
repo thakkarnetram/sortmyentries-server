@@ -17,8 +17,9 @@ exports.createOtpAndSend = async (req, res) => {
       return res.status(400).json({ message: "Email is required " });
     }
     const newOtp = new OtpModel({
-      otp: otp,
+      otp,
       isUsed: false,
+      email,
     });
     await newOtp.save();
     await emailSender.sendOtp(email, otp);

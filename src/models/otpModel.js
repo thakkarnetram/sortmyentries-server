@@ -11,6 +11,9 @@ const OtpSchema = new mongoose.Schema({
     type: Date,
     default: Date.now(),
   },
+  email: {
+    type: String,
+  },
 });
 
 const OTP = mongoose.model("otp", OtpSchema);
