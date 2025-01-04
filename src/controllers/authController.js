@@ -2,6 +2,7 @@ const User = require("../models/userModel");
 const Otp = require("../models/otpModel");
 const jwt = require("jsonwebtoken");
 const util = require("util");
+const bcrypt = require("bcrypt");
 const { sign } = require("jsonwebtoken");
 
 const signJwtToken = (email) => {
@@ -12,6 +13,38 @@ const signJwtToken = (email) => {
     process.env.SECRET_KEY
   );
 };
+
+exports.signUp = async (req,res) => {
+  try {
+    const {name,email,password,contact} = req.body;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!name || !email || !password || !contact) {
+      return res.status(400).json({message:"All fields are required "})
+    }
+    else if(!emailRegex.test(email)) {
+      return res.status(400).json({message:"Invalid email format "})
+    }
+    const existingUser = await User.findOne({email });
+    if (existingUser) {
+      return res.status(400).json({message : "User already exists , Please Login"})
+    }
+    const hashPassword = await bcrypt.hash(password,10);
+    const newUser = new User({
+      name,
+      email,
+      contact,
+      password:hashPassword
+    })
+    await newUser.save();
+    return res.status(201).json({
+      message:"Signed up successfully , Please verify your email id",
+      user:newUser,
+    })
+  }
+  catch (e) {
+    return res.status(500).json({message:"Internal server error"})
+  }
+}
 
 exports.loginUsingOtp = async (req, res) => {
   try {

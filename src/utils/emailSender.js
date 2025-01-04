@@ -25,3 +25,14 @@ exports.sendOtp = async (email, otp) => {
     return res.status(500).json({ message: `Internal server error ${error}` });
   }
 };
+
+exports.verifyEmail = async (email,token) => {
+  let transporter = nodeMailer.createTransport({
+    service:"gmail",
+    auth: {
+      user: process.env.GMAIL_ID,
+      pass: process.env.GMAIL_PASS,
+    },
+  });
+  const link = ``
+}
