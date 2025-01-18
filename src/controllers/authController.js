@@ -1,10 +1,16 @@
+// Database model imports
 const User = require("../models/userModel");
 const Otp = require("../models/otpModel");
+
+// Utils for server imports
+const emailSender = require("../utils/emailSender");
+const otpGenerator = require('./../utils/generateOtp')
+
+// Node library imports
 const jwt = require("jsonwebtoken");
 const util = require("util");
 const bcrypt = require("bcrypt");
 const { sign } = require("jsonwebtoken");
-const e = require("express");
 
 /**
  * This function takes the user's email and using a secret key from .env signs a jwt token mapped to the
@@ -63,7 +69,7 @@ exports.signUp = async (req,res) => {
     })
     await newUser.save();
     return res.status(201).json({
-      message:"Signed up successfully , Please verify your email id",
+      message:"Signed up successfully",
       user:newUser,
     })
   }
@@ -73,35 +79,91 @@ exports.signUp = async (req,res) => {
 }
 
 /**
- * TODO
+ * Logs in user using email and password
+ *
+ * This function performs the following:
+ * 1. Checks if email & password are provided.
+ * 2. Checks if email has correct format.
+ * 3. Checks if user exists or not.
+ * 4. Checks if the password entered and stored for the user matches or not .
+ *
+ * @param {string} email - User's email
+ * @param {string} password - User's password
+ *
+ * @returns {Object} - A response object with user info & jwt-token is sent when the login is successful
  * */
 exports.loginUsingPassword = async (req,res) => {
   try{
     const {email,password} = req.body;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+    if(!email && !password) {
+      return res.status(400).json({message:"All fields are required"});
+    } else if (!emailRegex.test(email)) {
+      return res.status(400).json({message:"Email format is not valid"})
+    }
+    const user = await User.findOne({email });
+    if(!user) {
+      return res.status(400).json({message:"User does not exist"});
+    }
+    const matchPassword = bcrypt.compare(password,user.password);
+    if(matchPassword) {
+      const token = signJwtToken(user.email);
+      return res.status(200).json({
+        message:"Login Successful",
+        token,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        contact : user.contact
+      })
+    } else {
+      return res.status(401).json({message:"Invalid password"})
+    }
   }
   catch (error) {
     return res.status(500).json({message:error})
   }
 }
 
-/*
-TODO
+/**
+ * Sends otp to user's email
+ *
+ * This function performs the following:
+ *
+ * 1. Requests user's email
+ * 2. Generates an otp using generateRandomNumber function
+ * 3. Checks if user has provided email
+ * 4. Checks if the email format is valid
+ * 5. Creates a newOtp object including the new otp generated , setting isUsed to false and adding the user's email who had requested.
+ * 6. Saves the newOtp object to Database
+ * 7. Fires the emailSender util to send the otp to user's email.
+ *
+ * @returns {Object} A response object with a message is returned on successfully sending the otp
 */
 exports.requestOtp = async (req,res) => {
-  try{
-    const {email} = req.body;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if(!email) {
-      return res.status(400).json({message:"Email is required "});
-    } else if (!emailRegex.test(email)){
-      return res.status(500).json({message:"Invalid email format"});
+  try {
+    const { email } = req.body;
+    const otp = otpGenerator.generateRandomNumber();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required " });
     }
-
+    if (!emailRegex.test(email)) {
+      return res.status(403).json({ message: "Invalid Email format" });
+    }
+    const newOtp = await new Otp({
+      otp,
+      isUsed: false,
+      email,
+    });
+    await newOtp.save();
+    await emailSender.sendOtp(email, otp);
+    return res
+        .status(200)
+        .json({ message: `Otp Sent , Please check your email ${email}` });
   }
   catch (error) {
-    return res.status(500).json({message:error})
+    return res.status(500).json({ message: error });
   }
 }
 
