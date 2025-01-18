@@ -22,7 +22,7 @@ exports.sendOtp = async (email, otp) => {
     await transporter.sendMail(mailOptions);
     console.log("OTP sent to ", email);
   } catch (error) {
-    return res.status(500).json({ message: `Internal server error ${error}` });
+    console.log("Error sending OTP: ", error);
   }
 };
 
