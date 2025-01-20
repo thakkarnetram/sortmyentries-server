@@ -206,6 +206,36 @@ exports.loginUsingOtp = async (req, res) => {
   }
 };
 
+/** TODO
+* */
+exports.verifyEmail = async (req,res) => {
+  try{
+    const {email} = req.body;
+  }catch (error){
+    return res.status(500).json({ message: error });
+  }
+}
+
+/** TODO
+ * */
+exports.requestPasswordReset = async (req,res) => {
+  try{
+    const {email} = req.body;
+  }catch (error){
+    return res.status(500).json({ message: error });
+  }
+}
+
+/** TODO
+ * */
+
+exports.resetPassword = async (req,res) => {
+  try{
+    const {password,confirmPassword} = req.body;
+  }catch (error){
+    return res.status(500).json({ message: error });
+  }
+}
 
 /**
  * This is a middleware function which protects the API routes with a token based authorization.
