@@ -206,7 +206,7 @@ exports.loginUsingOtp = async (req, res) => {
   }
 };
 
-/** TODO
+/** TODO req.query
 * */
 exports.verifyEmail = async (req,res) => {
   try{
@@ -217,16 +217,47 @@ exports.verifyEmail = async (req,res) => {
 }
 
 /** TODO
+ * Generates a reset password link on request
  * */
 exports.requestPasswordReset = async (req,res) => {
   try{
     const {email} = req.body;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if(!email) {
+      return res.status(400).json({message:"Email not provided"});
+    } else if (!emailRegex.test(email)) {
+      return res.status(400).json({message:"Invalid Email format"})
+    }
+    const user = await User.findOne({email });
+    if(!user) {
+      return res.status(404).json({message:"User not found"})
+    }
+    const link = `${process.env.ROOT_URL}/auth/api/v1/password/reset/${user._id}`;
+    await emailSender.resetPasswordEmail(user.email,link);
   }catch (error){
     return res.status(500).json({ message: error });
   }
 }
 
 /** TODO
+ * Serves the reset password page
+ * */
+exports.resetPasswordPage = async (req,res) => {
+  try{
+      const user = await User.findById(req.params._id);
+      if(!user) {
+        return res.status(404).json({message:"User not found"})
+      }
+      res.render("resetPassword.ejs" ,{
+        userId:req.params._id,
+      })
+  }catch (error){
+    return res.status(500).json({ message: error });
+  }
+}
+
+/** TODO
+ * Handles the new password for the user and saves
  * */
 
 exports.resetPassword = async (req,res) => {
