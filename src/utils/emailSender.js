@@ -26,9 +26,9 @@ exports.sendOtp = async (email, otp) => {
   }
 };
 
-exports.verifyEmail = async (email,token) => {
-  let transporter = nodeMailer.createTransport({
-    service:"gmail",
+exports.verifyEmail = async (email, token) => {
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
     auth: {
       user: process.env.GMAIL_ID,
       pass: process.env.GMAIL_PASS,
@@ -45,6 +45,7 @@ exports.resetPasswordEmail = async (email, link) => {
       pass: process.env.GMAIL_PASS,
     },
   });
+  const link = `${process.env.ROOT_URL}/auth/api/v1/email/verify`;
   const mail = process.env.GMAIL_ID;
   const mailOptions = {
     from: process.env.GMAIL_ID,
@@ -55,6 +56,12 @@ exports.resetPasswordEmail = async (email, link) => {
       <h2>Hi ${email}</h2>
       <h3>Reset Your Password </h3>
       <p>Click <a href="${link}">here</a> to reset .</p>
+    subject: "Email Verification",
+    generateTextFromHTML: true,
+    html: `
+      <h2>Hi ${email}</h2>
+      <h3>Please Verify your mail </h3>
+      <p>Click <a href="${link}?email=${email}">here</a> to verify your email.</p>
       <h4>Thank you . </h4>
       <h5>Contact Developer <a href="mailto:${mail}">${mail}</a> </h5>
       `,
@@ -65,4 +72,5 @@ exports.resetPasswordEmail = async (email, link) => {
   } catch (error) {
     console.log("Error ", error);
   }
+};
 };
