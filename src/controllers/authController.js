@@ -216,8 +216,16 @@ exports.verifyEmail = async (req,res) => {
   }
 }
 
-/** TODO
- * Generates a reset password link on request
+/**
+ * Generates a password reset link on user's request
+ *
+ * This function does the following:
+ * 1. Checks if the email is provided.
+ * 2. Checks if the email provided is valid .
+ * 3. Checks if the user with the give email id exists
+ * 4. Creating a link with user._id passed as param
+ * 5. Sends an email to the user with password reset link provided
+ *
  * */
 exports.requestPasswordReset = async (req,res) => {
   try{
@@ -234,13 +242,20 @@ exports.requestPasswordReset = async (req,res) => {
     }
     const link = `${process.env.ROOT_URL}/auth/api/v1/password/reset/${user._id}`;
     await emailSender.resetPasswordEmail(user.email,link);
+    return res.status(200).json({message:`Password reset link sent to ${email}`});
   }catch (error){
     return res.status(500).json({ message: error });
   }
 }
 
-/** TODO
- * Serves the reset password page
+/**
+ * Renders the Reset password page for the user
+ *
+ * This function performs the following:
+ * 1. Checks if the user's id exists
+ * 2. If the user's id exists it renders the resetPasswordPage
+ *
+ * @returns {__filename} - Returns the resetPasswordPage.ejs on success and passes user's id as param
  * */
 exports.resetPasswordPage = async (req,res) => {
   try{
@@ -248,7 +263,7 @@ exports.resetPasswordPage = async (req,res) => {
       if(!user) {
         return res.status(404).json({message:"User not found"})
       }
-      res.render("resetPassword.ejs" ,{
+      res.render("resetPasswordPage.ejs" ,{
         userId:req.params._id,
       })
   }catch (error){
@@ -256,15 +271,38 @@ exports.resetPasswordPage = async (req,res) => {
   }
 }
 
-/** TODO
- * Handles the new password for the user and saves
+/**
+ * Resets the password for the user
+ *
+ * This function does the following:
+ * 1. Checks if password and confirmPassword is provided by the user
+ * 2. Checks if the user exists with the given id
+ * 3. Checks if the password and confirmPassword value matches
+ * 4. Using bcrypt hashes the new password
+ * 5. Saves the new password of the user
+ * 6. Returns a resetPasswordSuccess.ejs if the password resets successfully
+ *
+ * @returns {__filename} - Returns the resetPasswordPageSuccess.ejs on success and updates the password
  * */
 
 exports.resetPassword = async (req,res) => {
   try{
     const {password,confirmPassword} = req.body;
+    const user = await User.findById(req.params._id);
+    if(!user) {
+      return res.status(400).json({message:"User not found"})
+    }
+    if(!password && !confirmPassword) {
+      return res.status(400).json({message:"Please enter your new password"});
+    }
+    if(password !== confirmPassword) {
+      return res.status(400).json({message:"Password does not match"})
+    }
+    user.password = await bcrypt.hash(confirmPassword,10);
+    await user.save();
+    return res.render("resetPasswordSuccess.ejs")
   }catch (error){
-    return res.status(500).json({ message: error });
+    return res.render("resetPasswordFail.ejs")
   }
 }
 
