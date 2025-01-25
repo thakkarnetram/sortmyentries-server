@@ -210,7 +210,7 @@ exports.loginUsingOtp = async (req, res) => {
  * */
 exports.verifyEmail = async (req, res) => {
     try {
-        const {email} = req.body;
+        const {email} = req.query;
         if (!email) {
             return res.status(400).json({message: "Email Not Provided"});
         }
