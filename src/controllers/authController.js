@@ -206,7 +206,15 @@ exports.loginUsingOtp = async (req, res) => {
     }
 };
 
-/** TODO
+/**
+ * Verifies the user's email id
+ *
+ * This function does the following:
+ * 1. Checks if the email is provided in the query
+ * 2. Checks if the user exists
+ * 3. Updates the user's mail id and set isVerified to true
+ *
+ * @returns {__filename} emailVerified.ejs - Renders an email verified page on success
  * */
 exports.verifyEmail = async (req, res) => {
     try {
