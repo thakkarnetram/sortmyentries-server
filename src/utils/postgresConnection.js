@@ -1,6 +1,7 @@
 require("dotenv").config({ path: `.env` });
 const {Client} = require('pg');
 const createUserTable = require('../tables/userTable')
+const createOtpTable = require('../tables/otpTable')
 const connection = new Client({
     user:process.env.PG_USER,
     host:process.env.PG_HOST,
@@ -20,6 +21,7 @@ connection.connect()
 const createTables = async () => {
     try {
         await connection.query(createUserTable);
+        await connection.query(createOtpTable);
     } catch (err) {
         console.log(err)
     }
