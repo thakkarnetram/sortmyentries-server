@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
 require("./src/utils/mongoConnection").connectDb();
+require("./src/utils/postgresConnection");
 
 const app = express();
 app.use(express.json());
