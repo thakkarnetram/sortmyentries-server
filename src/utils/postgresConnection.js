@@ -44,3 +44,4 @@ createTables()
         console.log(err)
     });
 
+module.exports = connection;
