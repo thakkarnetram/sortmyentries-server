@@ -1,3 +1,6 @@
+// Postgres connection import
+const connection = require('../utils/postgresConnection')
+
 // Database model imports
 const User = require("../models/userModel");
 const Otp = require("../models/otpModel");
@@ -56,23 +59,30 @@ exports.signUp = async (req, res) => {
         } else if (contact.length !== 10) {
             return res.status(400).json({message: "Provide a valid contact number"})
         }
-        const existingUser = await User.findOne({email});
-        if (existingUser) {
-            return res.status(400).json({message: "User already exists , Please Login"})
+        const existingUser = await connection.query(
+            `SELECT * FROM users where email = $1`,
+            [email]
+        )
+        if(existingUser.rows.length > 0 ) {
+            return res.status(400).json({message:"User exists please Login"})
         }
         const hashPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({
+        const insertQuery = `
+            INSERT INTO users (name, email, contact, password, isVerified)
+            VALUES ($1, $2, $3, $4, false)
+            RETURNING id, name, email, contact, isVerified
+        `;
+        const result = await connection.query(insertQuery, [
             name,
             email,
             contact,
-            password: hashPassword
-        })
-        await newUser.save();
+            hashPassword
+        ]);
         await emailSender.verifyEmail(email);
         return res.status(201).json({
-            message: "Signed up successfully,Please check your Email to verify",
-            user: newUser,
-        })
+            message: "Signed up successfully, please check your email to verify",
+            user: result.rows[0],
+        });
     } catch (error) {
         return res.status(500).json({message: error})
     }
@@ -103,23 +113,27 @@ exports.loginUsingPassword = async (req, res) => {
         } else if (!emailRegex.test(email)) {
             return res.status(400).json({message: "Email format is not valid"})
         }
-        const user = await User.findOne({email});
-        if (!user) {
-            return res.status(400).json({message: "User does not exist"});
+        const userResult = await connection.query(
+            `SELECT * FROM users WHERE email = $1`,
+            [email]
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(400).json({ message: "User does not exist" });
         }
-        const matchPassword = bcrypt.compare(password, user.password);
+        const user = userResult.rows[0];
+        const matchPassword = await bcrypt.compare(password, user.password);
         if (matchPassword) {
             const token = signJwtToken(user.email);
             return res.status(200).json({
                 message: "Login Successful",
                 token,
-                _id: user._id,
+                _id: user.id,
                 name: user.name,
                 email: user.email,
                 contact: user.contact
-            })
+            });
         } else {
-            return res.status(401).json({message: "Invalid password"})
+            return res.status(401).json({ message: "Invalid password" });
         }
     } catch (error) {
         return res.status(500).json({message: error})
@@ -152,12 +166,10 @@ exports.requestOtp = async (req, res) => {
         if (!emailRegex.test(email)) {
             return res.status(403).json({message: "Invalid Email format"});
         }
-        const newOtp = await new Otp({
-            otp,
-            isUsed: false,
-            email,
-        });
-        await newOtp.save();
+        await connection.query(
+            `INSERT INTO otp (otp, isUsed, email) VALUES ($1, $2, $3)`,
+            [otp, false, email]
+        );
         await emailSender.sendOtp(email, otp);
         return res
             .status(200)
