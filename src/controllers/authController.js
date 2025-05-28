@@ -195,19 +195,26 @@ exports.requestOtp = async (req, res) => {
  * */
 exports.loginUsingOtp = async (req, res) => {
     try {
-        const {otp} = req.body;
-        if (!otp) {
-            return res.status(400).json({message: "Otp is required"});
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({ message: "Email and OTP are required" });
         }
-        const otpData = await Otp.findOne({otp});
-        if (!otpData) {
-            return res.status(400).json({message: "Invalid Otp "});
+        const otpResult = await connection.query(
+            `SELECT * FROM otp WHERE email = $1 AND otp = $2`,
+            [email, otp]
+        );
+        if (otpResult.rows.length === 0) {
+            return res.status(400).json({ message: "Invalid OTP" });
         }
+        const otpData = otpResult.rows[0];
         if (otpData.isUsed) {
-            return res.status(403).json({message: "Otp already used"});
+            return res.status(403).json({ message: "OTP already used" });
         }
-        otpData.isUsed = true;
-        await otpData.save();
+        await connection.query(
+            `UPDATE otp SET isUsed = TRUE WHERE id = $1`,
+            [otpData.id]
+        );
         const token = signJwtToken(otpData.email);
         return res.status(200).json({
             message: "Otp verified successfully",

@@ -17,6 +17,6 @@ router.route("/api/v1/password/reset/:_id").post(authController.resetPassword) /
 
 // Otp based routes
 router.route("/api/v1/login/otp/request").post(authController.requestOtp);
-router.route("/api/v1/login/otp/verify").post(authController.loginUsingOtp);
+router.route("/api/v1/login/otp").post(authController.loginUsingOtp);
 
 module.exports = router;
