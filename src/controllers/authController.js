@@ -241,16 +241,14 @@ exports.verifyEmail = async (req, res) => {
         if (!email) {
             return res.status(400).json({message: "Email Not Provided"});
         }
-        const user = await User.findOneAndUpdate(
-            {email},
-            {isVerified: true}
+        const result = await connection.query(
+            `UPDATE users SET isVerified = TRUE WHERE email = $1 RETURNING *`,
+            [email]
         );
-        if(!user){
-            return res.status(400).json({message:"User not found"})
+        if (result.rows.length === 0) {
+            return res.status(400).json({ message: "User not found" });
         }
-        if(user){
-            return res.status(200).render("emailVerified.ejs");
-        }
+        return res.status(200).render("emailVerified.ejs");
     } catch (error) {
         return res.status(500).json({message: error});
     }
