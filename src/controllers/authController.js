@@ -274,13 +274,20 @@ exports.requestPasswordReset = async (req,res) => {
     } else if (!emailRegex.test(email)) {
       return res.status(400).json({message:"Invalid Email format"})
     }
-    const user = await User.findOne({email });
-    if(!user) {
-      return res.status(404).json({message:"User not found"})
-    }
-    const link = `${process.env.ROOT_URL}/auth/api/v1/password/reset/${user._id}`;
-    await emailSender.resetPasswordEmail(user.email,link);
-    return res.status(200).json({message:`Password reset link sent to ${email}`});
+      const userResult = await connection.query(
+          `SELECT * FROM users WHERE email = $1`,
+          [email]
+      );
+      if (userResult.rows.length === 0) {
+          return res.status(404).json({ message: "User not found" });
+      }
+      const user = userResult.rows[0];
+      const link = `${process.env.ROOT_URL}/auth/api/v1/password/reset/${user.id}`;
+      await emailSender.resetPasswordEmail(user.email, link);
+
+      return res.status(200).json({
+          message: `Password reset link sent to ${email}`,
+      });
   }catch (error){
     return res.status(500).json({ message: error });
   }
@@ -297,13 +304,15 @@ exports.requestPasswordReset = async (req,res) => {
  * */
 exports.resetPasswordPage = async (req,res) => {
   try{
-      const user = await User.findById(req.params._id);
-      if(!user) {
-        return res.status(404).json({message:"User not found"})
+      const { _id } = req.params;
+      const result = await connection.query(
+          `SELECT * FROM users WHERE id = $1`,
+          [_id]
+      );
+      if (result.rows.length === 0) {
+          return res.status(404).json({ message: "User not found" });
       }
-      res.render("resetPasswordPage.ejs" ,{
-        userId:req.params._id,
-      })
+      return res.render("resetPasswordPage.ejs", { userId: _id });
   }catch (error){
     return res.status(500).json({ message: error });
   }
@@ -324,26 +333,35 @@ exports.resetPasswordPage = async (req,res) => {
  * */
 
 
-exports.resetPassword = async (req,res) => {
-  try{
-    const {password,confirmPassword} = req.body;
-    const user = await User.findById(req.params._id);
-    if(!user) {
-      return res.status(400).json({message:"User not found"})
+exports.resetPassword = async (req, res) => {
+    try {
+        const { password, confirmPassword } = req.body;
+        const { _id } = req.params;
+
+        const result = await connection.query(
+            `SELECT * FROM users WHERE id = $1`,
+            [_id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(400).json({ message: "User not found" });
+        }
+        if (!password || !confirmPassword) {
+            return res.status(400).json({ message: "Please enter your new password" });
+        }
+        if (password !== confirmPassword) {
+            return res.status(400).json({ message: "Password does not match" });
+        }
+        const hashedPassword = await bcrypt.hash(confirmPassword, 10);
+        await connection.query(
+            `UPDATE users SET password = $1 WHERE id = $2`,
+            [hashedPassword, _id]
+        );
+        return res.render("resetPasswordSuccess.ejs");
+    } catch (error) {
+        return res.render("resetPasswordFail.ejs");
     }
-    if(!password && !confirmPassword) {
-      return res.status(400).json({message:"Please enter your new password"});
-    }
-    if(password !== confirmPassword) {
-      return res.status(400).json({message:"Password does not match"})
-    }
-    user.password = await bcrypt.hash(confirmPassword,10);
-    await user.save();
-    return res.render("resetPasswordSuccess.ejs")
-  }catch (error){
-    return res.render("resetPasswordFail.ejs")
-  }
-}
+};
+
 
 /**
  * This is a middleware function which protects the API routes with a token based authorization.
@@ -362,25 +380,28 @@ exports.protectRouter = async (req, res, next) => {
         const token = req.headers.authorization;
         let jwtToken;
         if (!token) {
-            return res.status(401).json({message: "No Token Found"});
+            return res.status(401).json({ message: "No Token Found" });
         }
-        if (token && token.startsWith("Bearer ")) {
+        if (token.startsWith("Bearer ")) {
             jwtToken = token.split(" ")[1];
         }
         const decodedToken = await util.promisify(jwt.verify)(
             jwtToken,
             process.env.SECRET_KEY
         );
-        const user = await User.findOne({email: decodedToken.email});
-
-        if (!user) {
+        const result = await connection.query(
+            `SELECT * FROM users WHERE email = $1`,
+            [decodedToken.email]
+        );
+        if (result.rows.length === 0) {
             return res
                 .status(404)
-                .json({message: "The user with the given token does not exist"});
+                .json({ message: "The user with the given token does not exist" });
         }
-        req.user = user;
+        req.user = result.rows[0];
         next();
     } catch (error) {
-        return res.status(500).json({message: error})
+        return res.status(500).json({ message: error.message });
     }
 };
+
